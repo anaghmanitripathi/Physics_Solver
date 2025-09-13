@@ -84,8 +84,7 @@ def multivarNewtonIterSymbolic(funcMatrix, var_str, guessCoor, steps=3):
 
 
 '''
-Example: Given factors (x,y,z,w), the output of P(x,y,z,w) signifies the potential energy of an object. 
-(This was inspired by me being too lazy to solve for organic chem free body diagrams).
+Example: Given factors (x,y,z,w), the output of P(x,y,z,w) signifies the potential energy of an object.
 '''
 x, y, z, w = sym.symbols("x y z w")
 P = (x - 1)**2 + (y + 2)**3 + (z - 3)**2 + (w + 4)**2
@@ -105,3 +104,5 @@ for i, step in enumerate(exampleConvergence):
 #Outputs convergence at (1, -7/4, 3, -4), which is mathematically correct.
 
 #VERY IMPORTANT: Does NOT converge with linear terms in function. WILL output false convergence.
+
+# :D
