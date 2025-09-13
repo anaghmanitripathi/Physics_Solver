@@ -1,0 +1,107 @@
+import scipy as sp
+import numpy as np
+import sympy as sym
+
+_symbols = {}
+
+def get_symbols(variables_str):
+    """
+    Reuse symbols if already defined, else create them.
+    """
+    global _symbols
+    symbols_list = []
+    for var in variables_str.split():
+        if var not in _symbols:
+            _symbols[var] = sym.Symbol(var)
+        symbols_list.append(_symbols[var])
+    return symbols_list
+
+def inverse(matrix):
+    """
+    Returns the inverse of a matrix.
+    Uses pseudo-inverse if the matrix is singular.
+    Works with both numeric (numpy) and symbolic (sympy) matrices.
+    """
+    if isinstance(matrix, np.ndarray):
+        try:
+            return np.linalg.inv(matrix)
+        except np.linalg.LinAlgError:
+            return np.linalg.pinv(matrix)
+    elif isinstance(matrix, sym.Matrix):
+        # Use symbolic pseudo-inverse
+        return matrix.pinv()
+    else:
+        raise TypeError("Matrix must be either a numpy.ndarray or sympy.Matrix")
+
+
+def gradient(field_str, variables_str):
+    variables = get_symbols(variables_str)
+    f = sym.sympify(field_str)
+    grad = sym.Matrix([f]).jacobian(variables)
+    return grad.T
+
+def jacobian(functions_list_str, variables_str):
+    variables = get_symbols(variables_str)
+    functions = sym.sympify(functions_list_str)
+    f_vector = sym.Matrix(functions)
+    return f_vector.jacobian(variables)
+
+def newtonIter(expr_str, var_str, guess, steps=10):
+    var = get_symbols(var_str)[0]
+    f = sym.sympify(expr_str)
+    fprime = sym.diff(f, var)
+    x = guess
+    sequence = []
+    for _ in range(steps):
+        x = x - f.subs(var, x) / fprime.subs(var, x)
+        sequence.append(x)
+    return sequence
+
+
+def multivarNewtonIterSymbolic(funcMatrix, var_str, guessCoor, steps=3):
+    """
+    Performs symbolic multivariable Newton iteration for n-dimensional vector fields.
+    funcMatrix must be a column vector (n×1) sympy.Matrix.
+    Returns a list of symbolic approximations.
+    """
+    if not isinstance(funcMatrix, sym.Matrix):
+        funcMatrix = sym.Matrix(funcMatrix)
+    if funcMatrix.shape[1] != 1:
+        raise ValueError(f"Matrix must be a column vector (width=1), but it has shape {funcMatrix.shape}")
+
+    vars = get_symbols(var_str)
+    x_n = sym.Matrix(guessCoor)
+    sequence = []
+
+    for _ in range(steps):
+        J = funcMatrix.jacobian(vars)
+        F_val = funcMatrix.subs(dict(zip(vars, x_n)))
+        J_val = J.subs(dict(zip(vars, x_n)))
+        x_n = x_n - inverse(J_val) * F_val
+        sequence.append(x_n)
+
+    return sequence
+
+
+'''
+Example: Given factors (x,y,z,w), the output of P(x,y,z,w) signifies the potential energy of an object. 
+(This was inspired by me being too lazy to solve for organic chem free body diagrams).
+'''
+x, y, z, w = sym.symbols("x y z w")
+P = (x - 1)**2 + (y + 2)**3 + (z - 3)**2 + (w + 4)**2
+
+# Compute negative gradient
+negativeGradP = -1 * gradient(P, "x y z w")
+
+# Random starting guess
+guess = [0, 0, 0, 0]
+
+# Perform symbolic Newton iteration
+exampleConvergence = multivarNewtonIterSymbolic(negativeGradP, "x y z w", guess)
+
+for i, step in enumerate(exampleConvergence):
+    print(f"Step {i+1}: {step}")
+
+#Outputs convergence at (1, -7/4, 3, -4), which is mathematically correct.
+
+#VERY IMPORTANT: Does NOT converge with linear terms in function. WILL output false convergence.
